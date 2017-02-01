@@ -14,6 +14,9 @@
   # Hold the database that is pulled or pushed from/to backend API
   db.DB = {}
 
+  # Array of spreadsheet keys that are available
+  db.spreadsheets = []
+
 
   # Ask for data if any available on backend so we can restore
   # previous sessions
@@ -33,6 +36,7 @@
       data = JSON.parse res.body .data
       if data
         db.DB = JSON.parse data
+        console.log data
         console.log "==> Restored previous session from DB"
       else
         console.log "==> No previous session in DB found"
@@ -57,6 +61,15 @@
             console.error err if err
 
         cb?!
+
+      addSpreadsheet: (key) ->
+        # First of, get just the key
+        key = key.split('_')[0]
+        # Find out whether we have this spreadsheet key
+        spreadsheets = db.spreadsheets.filter( (spreadsheetKey) -> spreadsheetKey is key )
+        # unless we have it, add the spreadsheet key
+        unless spreadsheets.length > 0
+          db.spreadsheets.push key
 
       get: (key, cb) -> cb?(null, db.DB[key])
 

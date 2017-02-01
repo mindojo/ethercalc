@@ -12,6 +12,7 @@
     minimatch = require('minimatch');
     db = {};
     db.DB = {};
+    db.spreadsheets = [];
     request.get(CONFIG.host, function(err, res){
       var data;
       if (err) {
@@ -20,6 +21,7 @@
       data = JSON.parse(res.body).data;
       if (data) {
         db.DB = JSON.parse(data);
+        console.log(data);
         return console.log("==> Restored previous session from DB");
       } else {
         return console.log("==> No previous session in DB found");
@@ -38,6 +40,17 @@
           }
         });
         return typeof cb == 'function' ? cb() : void 8;
+      },
+      addSpreadsheet: function(key){
+        var spreadsheets;
+        key = key.split('_')[0];
+        spreadsheets = db.spreadsheets.filter(function(spreadsheetKey){
+          return spreadsheetKey === key;
+        });
+        if (!(spreadsheets.length > 0)) {
+          db.spreadsheets.push(key);
+        }
+        return console.log(db.spreadsheets);
       },
       get: function(key, cb){
         return typeof cb == 'function' ? cb(null, db.DB[key]) : void 8;
