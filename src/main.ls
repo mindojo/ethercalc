@@ -459,6 +459,9 @@
     | \my.ecell
       DB.hset "ecell-#room", user, ecell
     | \execute
+      # On each change in spreadsheet, update the HTML representation
+      console.log 'executing.............'
+      console.log SC[room]?exportHTMLForDB!
       return if cmdstr is /^set sheet defaulttextvalueformat text-wiki\s*$/
       <~ DB.multi!
         .rpush "log-#room" cmdstr
@@ -505,6 +508,8 @@
         reply { type: \ignore }
         return
       # } eddy @on data
+      # When a sheet is opened, we want to retrieve data for that sheet from db
+      DB.fetchData room
       console.log "join [log-#{room}] [user-#user]"
       @socket.join "log-#room"
       @socket.join "user-#user"

@@ -3,7 +3,7 @@
   var slice$ = [].slice;
   this.__DB__ = null;
   this.include = function(){
-    var request, CONFIG, minimatch, db, addModification, Commands;
+    var request, CONFIG, minimatch, db, addModification, cleanModifications, isObjectEmpty, Commands;
     if (this.__DB__) {
       return this.__DB__;
     }
@@ -14,13 +14,13 @@
     db.DB = {};
     db.spreadsheets = [];
     db.modifications = [];
-    addModification = function(key, value){
+    addModification = function(key, value, type){
       var modificationIndex;
       modificationIndex = db.modifications.findIndex(function(modification){
         return deepEq$(modification.modKey, key, '===');
       });
       if (modificationIndex >= 0) {
-        return db.modifications[modificationIndex] = value;
+        return db.modifications[modificationIndex].modValue = value;
       } else {
         return db.modifications.push({
           modKey: key,
@@ -28,22 +28,46 @@
         });
       }
     };
-    request.get(CONFIG.host, function(err, res){
-      var data;
-      if (err) {
-        return console.error(err);
+    cleanModifications = function(){
+      return db.modifications = [];
+    };
+    isObjectEmpty = function(obj){
+      var i$, len$, prop;
+      for (i$ = 0, len$ = obj.length; i$ < len$; ++i$) {
+        prop = obj[i$];
+        if (obj.hasOwnProperty(prop)) {
+          return false;
+        }
       }
-      data = JSON.parse(res.body).data;
-      if (data) {
-        db.DB = JSON.parse(data);
-        return console.log("==> Restored previous session from DB");
-      } else {
-        return console.log("==> No previous session in DB found");
-      }
-    }, Commands = {
+      return deepEq$(JSON.stringify(obj), JSON.stringify({}), '===');
+    };
+    /*request.get do
+      CONFIG.host # URL to backend API
+      (err, res) ->
+        return console.error err if err
+    
+        # Parse data from db
+        # In DB we have for example the following objects
+        # {
+        #   "id": 1,
+        #   "data": "JSON.stringified data here"
+        # }
+        # and by sending the request, we receive that particular object
+        # and we wanna get its database from data property
+        data = JSON.parse res.body .data
+        if data
+          db.DB = JSON.parse data
+          #console.log data
+          console.log "==> Restored previous session from DB"
+        else
+          console.log "==> No previous session in DB found"*/
+    Commands = {
       bgsave: function(cb){
-        var dataToBeDumped, i$, ref$, len$, modification;
-        dataToBeDumped = JSON.stringify(db.DB, void 8, 2);
+        var i$, ref$, len$, modification;
+        return undefined;
+        if (!(db.modifications.length > 0)) {
+          return;
+        }
         console.log('\n\n\nstart modifying... ============================>\n\n');
         for (i$ = 0, len$ = (ref$ = db.modifications).length; i$ < len$; ++i$) {
           modification = ref$[i$];
@@ -52,11 +76,14 @@
         console.log('\n\nend modifying...   ============================>\n\n\n');
         request.put(CONFIG.host, {
           json: {
-            data: dataToBeDumped
+            data: db.modifications
           }
         }, function(err, res, body){
           if (err) {
-            return console.error(err);
+            console.error(err);
+          }
+          if (!err) {
+            return cleanModifications();
           }
         });
         return typeof cb == 'function' ? cb() : void 8;
@@ -71,12 +98,35 @@
           return db.spreadsheets.push(key);
         }
       },
+      fetchData: function(sheetId){
+        return request.get(CONFIG.host + sheetId, function(err, res){
+          var data;
+          if (err) {
+            return console.error(err);
+          }
+          data = JSON.parse(res.body);
+          console.log('data', data);
+          console.log('=====================================>');
+          if (!isObjectEmpty(data)) {
+            delete data.id;
+            db.DB = Object.assign(db.DB, data);
+            console.log("==> Restored previous session from DB");
+            console.log(db.DB);
+            return console.log('=====================================>');
+          } else {
+            return console.log("==> No previous session in DB found");
+          }
+        });
+      },
+      updateHtmlRepresentation: function(key){
+        return console.log(key, 'creating html.... ------------------------->');
+      },
       get: function(key, cb){
         return typeof cb == 'function' ? cb(null, db.DB[key]) : void 8;
       },
       set: function(key, val, cb){
         db.DB[key] = val;
-        addModification(key, val);
+        addModification(key, val, 'set');
         return typeof cb == 'function' ? cb() : void 8;
       },
       exists: function(key, cb){
@@ -87,7 +137,7 @@
         ((ref1$ = (ref$ = db.DB)[key]) != null
           ? ref1$
           : ref$[key] = []).push(val);
-        addModification(key, db.DB[key]);
+        addModification(key, db.DB[key], 'rpush');
         return typeof cb == 'function' ? cb() : void 8;
       },
       lrange: function(key, from, to, cb){
@@ -101,7 +151,7 @@
         ((ref1$ = (ref$ = db.DB)[key]) != null
           ? ref1$
           : ref$[key] = {})[idx] = val;
-        addModification(key, db.DB[key]);
+        addModification(key, db.DB[key], 'hset');
         return typeof cb == 'function' ? cb() : void 8;
       },
       hgetall: function(key, cb){
@@ -115,15 +165,15 @@
           delete db.DB[key][idx];
         }
         if (db.DB[key] != null) {
-          addModification(key, db.DB[key]);
+          addModification(key, db.DB[key], 'hdel');
         }
         return typeof cb == 'function' ? cb() : void 8;
       },
       rename: function(key, key2, cb){
         var ref$, ref1$;
         db.DB[key2] = (ref1$ = (ref$ = db.DB)[key], delete ref$[key], ref1$);
-        addModification(key, false);
-        addModification(key2, db.DB[key2]);
+        addModification(key, null, 'rename');
+        addModification(key2, db.DB[key2], 'rename');
         return typeof cb == 'function' ? cb() : void 8;
       },
       keys: function(select, cb){
@@ -135,15 +185,17 @@
           for (i$ = 0, len$ = keys.length; i$ < len$; ++i$) {
             key = keys[i$];
             delete db.DB[key];
-            addModification(key, false);
+            addModification(key, null, 'del');
           }
         } else {
           delete db.DB[keys];
-          addModification(keys, false);
+          addModification(keys, null, 'del');
         }
         return typeof cb == 'function' ? cb() : void 8;
       }
-    }, importAll$(db, Commands), db.multi = function(){
+    };
+    importAll$(db, Commands);
+    db.multi = function(){
       var cmds, res$, i$, to$, name;
       res$ = [];
       for (i$ = 0, to$ = arguments.length; i$ < to$; ++i$) {
@@ -181,7 +233,7 @@
           return this;
         };
       }
-    });
+    };
     return this.__DB__ = db;
   };
   function deepEq$(x, y, type){

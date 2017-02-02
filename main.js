@@ -723,7 +723,7 @@
     });
     return this.on({
       data: function(){
-        var ref$, room, msg, user, ecell, cmdstr, type, auth, reply, broadcast, this$ = this;
+        var ref$, room, msg, user, ecell, cmdstr, type, auth, reply, broadcast, ref1$, this$ = this;
         ref$ = this.data, room = ref$.room, msg = ref$.msg, user = ref$.user, ecell = ref$.ecell, cmdstr = ref$.cmdstr, type = ref$.type, auth = ref$.auth;
         console.log('data', room, user, type);
         DB.addSpreadsheet(room);
@@ -763,6 +763,8 @@
           DB.hset("ecell-" + room, user, ecell);
           break;
         case 'execute':
+          console.log('executing.............');
+          console.log((ref$ = SC[room]) != null ? ref$.exportHTMLForDB() : void 8);
           if (/^set sheet defaulttextvalueformat text-wiki\s*$/.exec(cmdstr)) {
             return;
           }
@@ -837,6 +839,7 @@
             });
             return;
           }
+          DB.fetchData(room);
           console.log("join [log-" + room + "] [user-" + user + "]");
           this.socket.join("log-" + room);
           this.socket.join("user-" + user);
@@ -855,8 +858,8 @@
           break;
         case 'ask.recalc':
           this.socket.join("recalc." + room);
-          if ((ref$ = SC[room]) != null) {
-            ref$.terminate();
+          if ((ref1$ = SC[room]) != null) {
+            ref1$.terminate();
           }
           delete SC[room];
           SC._get(room, this.io, function(arg$){

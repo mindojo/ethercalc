@@ -72,11 +72,11 @@ Worker ||= class => (code) ->
   DB = @include \db
   EXPIRE = @EXPIRE
   emailer = @include \emailer
+  htmlRepresentations = []
 
-  
   #eddy dataDir {
   dataDir = process.env.OPENSHIFT_DATA_DIR
-  #dataDir = ".."  
+  #dataDir = ".."
   # }
 
 
@@ -124,6 +124,7 @@ Worker ||= class => (code) ->
       SC[room]._doClearCache!
       return SC[room]
     w = new Worker ->
+      console.log 'initializing worker\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
       self.onmessage = ({ data: { type, ref, snapshot, command, room, log=[] } }) -> switch type
       | \cmd
         #console.log "===> cmd "+command
@@ -133,7 +134,7 @@ Worker ||= class => (code) ->
           postMessage { type: \setcrontrigger, timetriggerdata: { cell:commandParameters[1], times:commandParameters[2] } }
         if commandParameters[0] is \sendemail
           #console.log "------ send email --------"
-          #console.log " to:"+commandParameters[1]+" subject:"+commandParameters[2]+" body:"+commandParameters[3]             
+          #console.log " to:"+commandParameters[1]+" subject:"+commandParameters[2]+" body:"+commandParameters[3]
           postMessage { type: \sendemailout, emaildata: { to: commandParameters[1].replace(/%20/g,' '), subject: commandParameters[2].replace(/%20/g,' '), body:commandParameters[3].replace(/%20/g,' ')  } }
         window.ss.ExecuteCommand command
       | \recalc
@@ -144,6 +145,13 @@ Worker ||= class => (code) ->
         postMessage { type: \save, save: window.ss.CreateSheetSave! }
       | \exportHTML
         postMessage { type: \html, html: window.ss.CreateSheetHTML! }
+      | \getHTML
+        html = window.ss.CreateSheetHTML!
+
+        console.log 'html -----------------------'
+        console.log html
+        console.log room
+
       | \exportCSV
         csv = window.ss.SocialCalc.ConvertSaveToOtherFormat(
           window.ss.CreateSheetSave!
@@ -202,7 +210,7 @@ Worker ||= class => (code) ->
         .del "log-#room"
         .bgsave!
         .exec!
-      #logdate = new Date() 
+      #logdate = new Date()
       #console.log "==> Regenerated snapshot #{logdate.getFullYear() }-#{(logdate.getMonth()) + 1 }-#{logdate.getDate()} #{logdate.getHours()}:#{logdate.getMinutes()}:#{logdate.getSeconds()} for #room"
       DB.expire "snapshot-#room", EXPIRE if EXPIRE
     w.onerror = -> console.log it
@@ -221,15 +229,15 @@ Worker ||= class => (code) ->
       console.log "timeNowMins #timeNowMins .dataDir #dataDir"
       nextTriggerTime ?= 2147483647   # set to max seconds possible (31^2)
       triggerTimeList = for nextTime in timetriggerdata.times.split(",") when nextTime >= timeNowMins
-        if nextTriggerTime > nextTime 
+        if nextTriggerTime > nextTime
           nextTriggerTime = nextTime
         nextTime
       if scheduledNextTriggerTime != nextTriggerTime
         fs.writeFileSync do
           "#dataDir/nextTriggerTime.txt"
           nextTriggerTime
-          \utf8               
-      if triggerTimeList.length == 0 
+          \utf8
+      if triggerTimeList.length == 0
         <~ DB.hdel "cron-list" "#{room}!#{timetriggerdata.cell}"
       else
         <~ DB.multi!
@@ -238,7 +246,7 @@ Worker ||= class => (code) ->
           .bgsave!exec!
         (, allTimeTriggers) <~ DB.hgetall "cron-list"
         console.log "allTimeTriggers" {...allTimeTriggers} " nextTriggerTime #nextTriggerTime"
-    | \sendemailout 
+    | \sendemailout
       console.log "onmessage "+emaildata.to
       emailer.sendemail emaildata.to, emaildata.subject, emaildata.body,  (message) ->
         io.sockets.in "log-#room" .emit \data {
@@ -254,6 +262,7 @@ Worker ||= class => (code) ->
         w.postMessage { type: \recalc, ref, snapshot: '' }
     w._doClearCache = -> @postMessage { type: \clearCache }
     w.ExecuteCommand = (command) -> @postMessage { type: \cmd, command }
+    w.exportHTMLForDB = -> @postMessage { type: \getHTML, room: '123' }
     w.exportHTML = (cb) -> w.thread.eval """
       window.ss.CreateSheetHTML()
     """, (, html) -> cb html
@@ -313,7 +322,7 @@ Worker ||= class => (code) ->
       x.thread.eval bootSC, -> x.post-message {snapshot: w._snapshot, log}
     w._eval = (code, cb) ->
       setTimeout do #delay to give server side sheet time to initialize
-        -> 
+        ->
           #console.log "EVAL un-threaded"
           (, rv) <- w.thread.eval code
           return cb rv if rv?
@@ -354,7 +363,7 @@ Worker ||= class => (code) ->
     """, (cell) -> if cell is \undefined then cb 'null' else cb cell
     w.exportCells = (cb) -> w._eval "JSON.stringify(window.ss.sheet.cells)", cb
     # eddy exportAttribs, triggerActionCell {
-    w.exportAttribs = (cb) -> w._eval "window.ss.sheet.attribs", cb    
+    w.exportAttribs = (cb) -> w._eval "window.ss.sheet.attribs", cb
     w.triggerActionCell = (coord, cb) -> w._eval "window.ss.SocialCalc.TriggerIoAction.Email('#coord')" (emailcmd) ->
       #console.log "send via OAuth"
       for nextEmail in emailcmd
