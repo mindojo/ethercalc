@@ -208,11 +208,10 @@
     return Worker;
   }()));
   this.include = function(){
-    var DB, EXPIRE, emailer, htmlRepresentations, dataDir;
+    var DB, EXPIRE, emailer, dataDir;
     DB = this.include('db');
     EXPIRE = this.EXPIRE;
     emailer = this.include('emailer');
-    htmlRepresentations = [];
     dataDir = process.env.OPENSHIFT_DATA_DIR;
     SC._csvToSave = function(csv, cb){
       var w;
@@ -294,9 +293,8 @@
         return SC[room];
       }
       w = new Worker(function(){
-        console.log('initializing worker\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n');
         return self.onmessage = function(arg$){
-          var ref$, type, ref, snapshot, command, room, log, ref1$, commandParameters, html, csv, alert, ss, parts, cmdstr, line;
+          var ref$, type, ref, snapshot, command, room, log, ref1$, commandParameters, csv, alert, ss, parts, cmdstr, line;
           ref$ = arg$.data, type = ref$.type, ref = ref$.ref, snapshot = ref$.snapshot, command = ref$.command, room = ref$.room, log = (ref1$ = ref$.log) != null
             ? ref1$
             : [];
@@ -337,11 +335,6 @@
               type: 'html',
               html: window.ss.CreateSheetHTML()
             });
-          case 'getHTML':
-            html = window.ss.CreateSheetHTML();
-            console.log('html -----------------------');
-            console.log(html);
-            return console.log(room);
           case 'exportCSV':
             csv = window.ss.SocialCalc.ConvertSaveToOtherFormat(window.ss.CreateSheetSave(), 'csv');
             return postMessage({
@@ -526,12 +519,6 @@
         return this.postMessage({
           type: 'cmd',
           command: command
-        });
-      };
-      w.exportHTMLForDB = function(){
-        return this.postMessage({
-          type: 'getHTML',
-          room: '123'
         });
       };
       w.exportHTML = function(cb){

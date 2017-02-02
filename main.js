@@ -723,7 +723,7 @@
     });
     return this.on({
       data: function(){
-        var ref$, room, msg, user, ecell, cmdstr, type, auth, reply, broadcast, ref1$, this$ = this;
+        var ref$, room, msg, user, ecell, cmdstr, type, auth, reply, broadcast, this$ = this;
         ref$ = this.data, room = ref$.room, msg = ref$.msg, user = ref$.user, ecell = ref$.ecell, cmdstr = ref$.cmdstr, type = ref$.type, auth = ref$.auth;
         console.log('data', room, user, type);
         DB.addSpreadsheet(room);
@@ -763,13 +763,11 @@
           DB.hset("ecell-" + room, user, ecell);
           break;
         case 'execute':
-          console.log('executing.............');
-          console.log((ref$ = SC[room]) != null ? ref$.exportHTMLForDB() : void 8);
           if (/^set sheet defaulttextvalueformat text-wiki\s*$/.exec(cmdstr)) {
             return;
           }
           DB.multi().rpush("log-" + room, cmdstr).rpush("audit-" + room, cmdstr).bgsave().exec(function(){
-            var commandParameters, room_data, ref$, ref1$;
+            var commandParameters, room_data, ref$, ref1$, ref2$;
             commandParameters = cmdstr.split("\r");
             if (SC[room] == null) {
               console.log("SC[" + room + "] went away. Reloading...");
@@ -828,7 +826,10 @@
             if ((ref1$ = SC[room]) != null) {
               ref1$.ExecuteCommand(cmdstr);
             }
-            return broadcast(this$.data);
+            broadcast(this$.data);
+            return (ref2$ = SC[room]) != null ? ref2$.exportHTML(function(html){
+              return DB.updateHtmlRepresentation(room, html);
+            }) : void 8;
           });
           break;
         case 'ask.log':
@@ -858,8 +859,8 @@
           break;
         case 'ask.recalc':
           this.socket.join("recalc." + room);
-          if ((ref1$ = SC[room]) != null) {
-            ref1$.terminate();
+          if ((ref$ = SC[room]) != null) {
+            ref$.terminate();
           }
           delete SC[room];
           SC._get(room, this.io, function(arg$){

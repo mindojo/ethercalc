@@ -63,8 +63,7 @@
           console.log "==> No previous session in DB found"*/
     Commands = {
       bgsave: function(cb){
-        var i$, ref$, len$, modification;
-        return undefined;
+        var i$, ref$, len$, modification, toBeSaved;
         if (!(db.modifications.length > 0)) {
           return;
         }
@@ -74,9 +73,14 @@
           console.log('modification', modification);
         }
         console.log('\n\nend modifying...   ============================>\n\n\n');
+        toBeSaved = {};
+        for (i$ = 0, len$ = (ref$ = db.modifications).length; i$ < len$; ++i$) {
+          modification = ref$[i$];
+          toBeSaved[modification.modKey] = modification.modValue;
+        }
         request.put(CONFIG.host, {
           json: {
-            data: db.modifications
+            data: toBeSaved
           }
         }, function(err, res, body){
           if (err) {
@@ -118,8 +122,9 @@
           }
         });
       },
-      updateHtmlRepresentation: function(key){
-        return console.log(key, 'creating html.... ------------------------->');
+      updateHtmlRepresentation: function(key, html){
+        console.log('\n\n\n\n\ncreating html............ ------------------------->');
+        return console.log(key, html);
       },
       get: function(key, cb){
         return typeof cb == 'function' ? cb(null, db.DB[key]) : void 8;

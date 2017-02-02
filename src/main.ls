@@ -459,9 +459,6 @@
     | \my.ecell
       DB.hset "ecell-#room", user, ecell
     | \execute
-      # On each change in spreadsheet, update the HTML representation
-      console.log 'executing.............'
-      console.log SC[room]?exportHTMLForDB!
       return if cmdstr is /^set sheet defaulttextvalueformat text-wiki\s*$/
       <~ DB.multi!
         .rpush "log-#room" cmdstr
@@ -500,6 +497,8 @@
       # }eddy @on data
       SC[room]?ExecuteCommand cmdstr
       broadcast @data
+      # On each change in spreadsheet, update the HTML representation
+      SC[room]?exportHTML (html) -> DB.updateHtmlRepresentation room, html
     | \ask.log
       # eddy @on data {
       #ignore requests for log if startup up database

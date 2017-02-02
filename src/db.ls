@@ -142,9 +142,8 @@
           else
             console.log "==> No previous session in DB found"
 
-    updateHtmlRepresentation: (key) ->
-      console.log key, 'creating html.... ------------------------->'
-      #console.log socialcalc.CreateSheetHTML()
+    updateHtmlRepresentation: (key, html) ->
+      addModification key, html, 'updateHtmlRepresentation'
 
     get: (key, cb) -> cb?(null, db.DB[key])
 

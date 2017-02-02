@@ -72,7 +72,7 @@ Worker ||= class => (code) ->
   DB = @include \db
   EXPIRE = @EXPIRE
   emailer = @include \emailer
-  htmlRepresentations = []
+
 
   #eddy dataDir {
   dataDir = process.env.OPENSHIFT_DATA_DIR
@@ -124,7 +124,6 @@ Worker ||= class => (code) ->
       SC[room]._doClearCache!
       return SC[room]
     w = new Worker ->
-      console.log 'initializing worker\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
       self.onmessage = ({ data: { type, ref, snapshot, command, room, log=[] } }) -> switch type
       | \cmd
         #console.log "===> cmd "+command
@@ -145,13 +144,6 @@ Worker ||= class => (code) ->
         postMessage { type: \save, save: window.ss.CreateSheetSave! }
       | \exportHTML
         postMessage { type: \html, html: window.ss.CreateSheetHTML! }
-      | \getHTML
-        html = window.ss.CreateSheetHTML!
-
-        console.log 'html -----------------------'
-        console.log html
-        console.log room
-
       | \exportCSV
         csv = window.ss.SocialCalc.ConvertSaveToOtherFormat(
           window.ss.CreateSheetSave!
@@ -262,7 +254,6 @@ Worker ||= class => (code) ->
         w.postMessage { type: \recalc, ref, snapshot: '' }
     w._doClearCache = -> @postMessage { type: \clearCache }
     w.ExecuteCommand = (command) -> @postMessage { type: \cmd, command }
-    w.exportHTMLForDB = -> @postMessage { type: \getHTML, room: '123' }
     w.exportHTML = (cb) -> w.thread.eval """
       window.ss.CreateSheetHTML()
     """, (, html) -> cb html
