@@ -839,20 +839,21 @@
             });
             return;
           }
-          DB.fetchData(room);
-          console.log("join [log-" + room + "] [user-" + user + "]");
-          this.socket.join("log-" + room);
-          this.socket.join("user-" + user);
-          DB.multi().get("snapshot-" + room).lrange("log-" + room, 0, -1).lrange("chat-" + room, 0, -1).exec(function(_, arg$){
-            var snapshot, log, chat;
-            snapshot = arg$[0], log = arg$[1], chat = arg$[2];
-            SC[room] = SC._init(snapshot, log, DB, room, this$.io);
-            return reply({
-              type: 'log',
-              room: room,
-              log: log,
-              chat: chat,
-              snapshot: snapshot
+          DB.fetchData(room, function(){
+            console.log("join [log-" + room + "] [user-" + user + "]");
+            this$.socket.join("log-" + room);
+            this$.socket.join("user-" + user);
+            return DB.multi().get("snapshot-" + room).lrange("log-" + room, 0, -1).lrange("chat-" + room, 0, -1).exec(function(_, arg$){
+              var snapshot, log, chat;
+              snapshot = arg$[0], log = arg$[1], chat = arg$[2];
+              SC[room] = SC._init(snapshot, log, DB, room, this$.io);
+              return reply({
+                type: 'log',
+                room: room,
+                log: log,
+                chat: chat,
+                snapshot: snapshot
+              });
             });
           });
           break;

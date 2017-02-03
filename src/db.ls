@@ -8,6 +8,12 @@
 
   require! \minimatch
 
+  # require! 'fs'
+  # require! 'path'
+  # certFile = '/usr/local/etc/nginx/ssl/mindojo.local.pem'
+  # keyFile = '/usr/local/etc/nginx/ssl/mindojo.local.key'
+  # request = require('request');
+
   # At the end, we assign this var to @__DB__
   db = {}
 
@@ -63,29 +69,54 @@
       # Create a a hashtable from modifications
       toBeSaved = {}
       for modification in db.modifications
-        toBeSaved[modification.modKey] = modification.modValue
+        if modification.modValue === null
+          toBeSaved[modification.modKey] = modification.modValue
+        else
+          toBeSaved[modification.modKey] = JSON.stringify modification.modValue
 
       console.log '\n\n\nMODIFICATIONS ============================>\n'
       console.log toBeSaved
 
       # Updata modified data in the db on every save
-      request.put do
-        CONFIG.host
-        { json: toBeSaved }
+      request do
+        {
+          url: CONFIG.host
+          method: "POST",
+          agentOptions:
+            rejectUnauthorized: false
+          json: toBeSaved
+        }
         (err, res, body) ->
           #console.log '\n\n\nresponse\n'
           #console.log body
-          console.error err if err
-          cleanModifications! unless err
+          if body.error
+            console.log '\n\n\n\n\n\n\n\n ERROR'
+            console.log res
+            console.log '\n\n\n\n\n\n\n\n'
+          return console.error err if err
+          return console.error body.error if body.error
+          cleanModifications!
+          console.log 'success ===============>', body
 
       cb?!
 
-    fetchData: (sheetId) ->
+    fetchData: (sheetId, cb) ->
+      # Get a pure sheetId
+      sheetIdArr = sheetId.split('-')
+      sheetIdIndex = 0
+      if sheetIdArr.length > 1
+        sheetIdIndex = 1
+      sheetId = sheetIdArr[sheetIdIndex].split('_')[0]
       # Ask for data if any available on backend so we can restore
       # previous session
-      request.get do
-        CONFIG.host + sheetId # URL to backend API
+      request do
+        {
+          url: CONFIG.host + sheetId
+          agentOptions:
+            rejectUnauthorized: false
+        }
         (err, res) ->
+          console.info CONFIG.host + sheetId
           return console.error err if err
 
           # Parse data from db
@@ -97,18 +128,21 @@
           # This is gonna be in the following data variable
           data = JSON.parse res.body
 
-          console.log "\n\n\nDATA fetched for #{sheetId}  =====================================>\n"
-          console.log \data, data
+          unless isObjectEmpty data or data.error
+            dataToBeAssigned = {}
+            for key, value of data
+              if data.hasOwnProperty key
+                dataToBeAssigned[key] = JSON.parse value
 
-
-          unless isObjectEmpty data
             # Merge received data with current database
-            db.DB = Object.assign db.DB, data
+            db.DB = Object.assign db.DB, dataToBeAssigned
             console.log "\n\n\n==> Restored previous session from DB\n"
             console.log db.DB
             console.log '\n=====================================>'
           else
             console.log "\n\n==> No previous session in DB found\n"
+
+          cb!
 
     get: (key, cb) -> cb?(null, db.DB[key])
 

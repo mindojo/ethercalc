@@ -507,17 +507,19 @@
         return
       # } eddy @on data
       # When a sheet is opened, we want to retrieve data for that sheet from db
-      DB.fetchData room
-      console.log "join [log-#{room}] [user-#user]"
-      @socket.join "log-#room"
-      @socket.join "user-#user"
-      _, [snapshot, log, chat] <~ DB.multi!
-        .get "snapshot-#room"
-        .lrange "log-#room" 0 -1
-        .lrange "chat-#room" 0 -1
-        .exec!
-      SC[room] = SC._init snapshot, log, DB, room, @io
-      reply { type: \log, room, log, chat, snapshot }
+      DB.fetchData do
+        room
+        ~>
+          console.log "join [log-#{room}] [user-#user]"
+          @socket.join "log-#room"
+          @socket.join "user-#user"
+          _, [snapshot, log, chat] <~ DB.multi!
+            .get "snapshot-#room"
+            .lrange "log-#room" 0 -1
+            .lrange "chat-#room" 0 -1
+            .exec!
+          SC[room] = SC._init snapshot, log, DB, room, @io
+          reply { type: \log, room, log, chat, snapshot }
     | \ask.recalc
       @socket.join "recalc.#room"
       SC[room]?terminate!

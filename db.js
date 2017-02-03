@@ -49,39 +49,74 @@
         toBeSaved = {};
         for (i$ = 0, len$ = (ref$ = db.modifications).length; i$ < len$; ++i$) {
           modification = ref$[i$];
-          toBeSaved[modification.modKey] = modification.modValue;
+          if (deepEq$(modification.modValue, null, '===')) {
+            toBeSaved[modification.modKey] = modification.modValue;
+          } else {
+            toBeSaved[modification.modKey] = JSON.stringify(modification.modValue);
+          }
         }
         console.log('\n\n\nMODIFICATIONS ============================>\n');
         console.log(toBeSaved);
-        request.put(CONFIG.host, {
+        request({
+          url: CONFIG.host,
+          method: "POST",
+          agentOptions: {
+            rejectUnauthorized: false
+          },
           json: toBeSaved
         }, function(err, res, body){
+          if (body.error) {
+            console.log('\n\n\n\n\n\n\n\n ERROR');
+            console.log(res);
+            console.log('\n\n\n\n\n\n\n\n');
+          }
           if (err) {
-            console.error(err);
+            return console.error(err);
           }
-          if (!err) {
-            return cleanModifications();
+          if (body.error) {
+            return console.error(body.error);
           }
+          cleanModifications();
+          return console.log('success ===============>', body);
         });
         return typeof cb == 'function' ? cb() : void 8;
       },
-      fetchData: function(sheetId){
-        return request.get(CONFIG.host + sheetId, function(err, res){
-          var data;
+      fetchData: function(sheetId, cb){
+        var sheetIdArr, sheetIdIndex;
+        sheetIdArr = sheetId.split('-');
+        sheetIdIndex = 0;
+        if (sheetIdArr.length > 1) {
+          sheetIdIndex = 1;
+        }
+        sheetId = sheetIdArr[sheetIdIndex].split('_')[0];
+        return request({
+          url: CONFIG.host + sheetId,
+          agentOptions: {
+            rejectUnauthorized: false
+          }
+        }, function(err, res){
+          var data, dataToBeAssigned, key, value;
+          console.info(CONFIG.host + sheetId);
           if (err) {
             return console.error(err);
           }
           data = JSON.parse(res.body);
-          console.log("\n\n\nDATA fetched for " + sheetId + "  =====================================>\n");
-          console.log('data', data);
-          if (!isObjectEmpty(data)) {
-            db.DB = Object.assign(db.DB, data);
+          if (!(isObjectEmpty(data) || data.error)) {
+            dataToBeAssigned = {};
+            for (key in data) {
+              value = data[key];
+              if (data.hasOwnProperty(key)) {
+                dataToBeAssigned[key] = JSON.parse(value);
+              }
+            }
+            db.DB = Object.assign(db.DB, dataToBeAssigned);
             console.log("\n\n\n==> Restored previous session from DB\n");
             console.log(db.DB);
-            return console.log('\n=====================================>');
+            console.log('\n=====================================>');
           } else {
-            return console.log("\n\n==> No previous session in DB found\n");
+            console.log("\n\n==> No previous session in DB found\n");
           }
+          return cb();
         });
       },
       get: function(key, cb){
@@ -198,8 +233,6 @@
       }
     };
     db.updateHtmlRepresentation = function(key, html){
-      console.log("\n\n\nUPDATING HTML =====================================>\n");
-      console.log(html);
       addModification("html-" + key, html, 'updateHtmlRepresentation');
       return db.bgsave();
     };
