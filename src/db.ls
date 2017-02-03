@@ -8,11 +8,7 @@
 
   require! \minimatch
 
-  # require! 'fs'
-  # require! 'path'
-  # certFile = '/usr/local/etc/nginx/ssl/mindojo.local.pem'
-  # keyFile = '/usr/local/etc/nginx/ssl/mindojo.local.key'
-  # request = require('request');
+  require! 'lodash': _
 
   # At the end, we assign this var to @__DB__
   db = {}
@@ -47,11 +43,15 @@
     db.modifications = []
 
 
-  isObjectEmpty = (obj) ->
-    for prop in obj
-      if obj.hasOwnProperty prop
-        return false
-    JSON.stringify(obj) === JSON.stringify({});
+  # Helper method to get a sheet_id
+  # SheetIds may look like this for example: chat-sheet_id, chat-sheet_id_form, ...
+  # and we want to get just the sheet_id
+  getSheetId = (sheetId) ->
+    sheetIdArr = sheetId.split('-')
+    sheetIdIndex = 0
+    if sheetIdArr.length > 1
+      sheetIdIndex = 1
+    sheetId = sheetIdArr[sheetIdIndex].split('_')[0]
 
 
   # Define commands that are a replacement for the onces that should be
@@ -61,11 +61,6 @@
     bgsave: (cb) ->
       return unless db.modifications.length > 0
 
-      # console.log '\n\n\nstart modifying... ============================>\n'
-      # for modification in db.modifications
-      #   console.log \modification, modification
-      # console.log '\nend modifying...   ============================>\n\n\n'
-
       # Create a a hashtable from modifications
       toBeSaved = {}
       for modification in db.modifications
@@ -73,9 +68,6 @@
           toBeSaved[modification.modKey] = modification.modValue
         else
           toBeSaved[modification.modKey] = JSON.stringify modification.modValue
-
-      console.log '\n\n\nMODIFICATIONS ============================>\n'
-      console.log toBeSaved
 
       # Updata modified data in the db on every save
       request do
@@ -87,26 +79,16 @@
           json: toBeSaved
         }
         (err, res, body) ->
-          #console.log '\n\n\nresponse\n'
-          #console.log body
-          if body.error
-            console.log '\n\n\n\n\n\n\n\n ERROR'
-            console.log res
-            console.log '\n\n\n\n\n\n\n\n'
           return console.error err if err
           return console.error body.error if body.error
           cleanModifications!
-          console.log 'success ===============>', body
 
       cb?!
 
     fetchData: (sheetId, cb) ->
       # Get a pure sheetId
-      sheetIdArr = sheetId.split('-')
-      sheetIdIndex = 0
-      if sheetIdArr.length > 1
-        sheetIdIndex = 1
-      sheetId = sheetIdArr[sheetIdIndex].split('_')[0]
+      sheetId = getSheetId sheetId
+
       # Ask for data if any available on backend so we can restore
       # previous session
       request do
@@ -116,7 +98,6 @@
             rejectUnauthorized: false
         }
         (err, res) ->
-          console.info CONFIG.host + sheetId
           return console.error err if err
 
           # Parse data from db
@@ -128,21 +109,17 @@
           # This is gonna be in the following data variable
           data = JSON.parse res.body
 
-          unless isObjectEmpty data or data.error
+          unless _.isEmpty data or data.error
+            # Parse stringified data from API
             dataToBeAssigned = {}
             for key, value of data
               if data.hasOwnProperty key
                 dataToBeAssigned[key] = JSON.parse value
 
             # Merge received data with current database
-            db.DB = Object.assign db.DB, dataToBeAssigned
-            console.log "\n\n\n==> Restored previous session from DB\n"
-            console.log db.DB
-            console.log '\n=====================================>'
-          else
-            console.log "\n\n==> No previous session in DB found\n"
+            db.DB = _.assign db.DB, dataToBeAssigned
 
-          cb!
+          cb?!
 
     get: (key, cb) -> cb?(null, db.DB[key])
 

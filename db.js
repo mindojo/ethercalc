@@ -3,13 +3,14 @@
   var slice$ = [].slice;
   this.__DB__ = null;
   this.include = function(){
-    var request, CONFIG, minimatch, db, addModification, cleanModifications, isObjectEmpty, Commands;
+    var request, CONFIG, minimatch, _, db, addModification, cleanModifications, getSheetId, Commands;
     if (this.__DB__) {
       return this.__DB__;
     }
     request = require('request');
     CONFIG = require('./environment');
     minimatch = require('minimatch');
+    _ = require('lodash');
     db = {};
     db.DB = {};
     db.modifications = [];
@@ -30,15 +31,14 @@
     cleanModifications = function(){
       return db.modifications = [];
     };
-    isObjectEmpty = function(obj){
-      var i$, len$, prop;
-      for (i$ = 0, len$ = obj.length; i$ < len$; ++i$) {
-        prop = obj[i$];
-        if (obj.hasOwnProperty(prop)) {
-          return false;
-        }
+    getSheetId = function(sheetId){
+      var sheetIdArr, sheetIdIndex;
+      sheetIdArr = sheetId.split('-');
+      sheetIdIndex = 0;
+      if (sheetIdArr.length > 1) {
+        sheetIdIndex = 1;
       }
-      return deepEq$(JSON.stringify(obj), JSON.stringify({}), '===');
+      return sheetId = sheetIdArr[sheetIdIndex].split('_')[0];
     };
     Commands = {
       bgsave: function(cb){
@@ -55,8 +55,6 @@
             toBeSaved[modification.modKey] = JSON.stringify(modification.modValue);
           }
         }
-        console.log('\n\n\nMODIFICATIONS ============================>\n');
-        console.log(toBeSaved);
         request({
           url: CONFIG.host,
           method: "POST",
@@ -65,30 +63,18 @@
           },
           json: toBeSaved
         }, function(err, res, body){
-          if (body.error) {
-            console.log('\n\n\n\n\n\n\n\n ERROR');
-            console.log(res);
-            console.log('\n\n\n\n\n\n\n\n');
-          }
           if (err) {
             return console.error(err);
           }
           if (body.error) {
             return console.error(body.error);
           }
-          cleanModifications();
-          return console.log('success ===============>', body);
+          return cleanModifications();
         });
         return typeof cb == 'function' ? cb() : void 8;
       },
       fetchData: function(sheetId, cb){
-        var sheetIdArr, sheetIdIndex;
-        sheetIdArr = sheetId.split('-');
-        sheetIdIndex = 0;
-        if (sheetIdArr.length > 1) {
-          sheetIdIndex = 1;
-        }
-        sheetId = sheetIdArr[sheetIdIndex].split('_')[0];
+        sheetId = getSheetId(sheetId);
         return request({
           url: CONFIG.host + sheetId,
           agentOptions: {
@@ -96,12 +82,11 @@
           }
         }, function(err, res){
           var data, dataToBeAssigned, key, value;
-          console.info(CONFIG.host + sheetId);
           if (err) {
             return console.error(err);
           }
           data = JSON.parse(res.body);
-          if (!(isObjectEmpty(data) || data.error)) {
+          if (!(_.isEmpty(data) || data.error)) {
             dataToBeAssigned = {};
             for (key in data) {
               value = data[key];
@@ -109,14 +94,9 @@
                 dataToBeAssigned[key] = JSON.parse(value);
               }
             }
-            db.DB = Object.assign(db.DB, dataToBeAssigned);
-            console.log("\n\n\n==> Restored previous session from DB\n");
-            console.log(db.DB);
-            console.log('\n=====================================>');
-          } else {
-            console.log("\n\n==> No previous session in DB found\n");
+            db.DB = _.assign(db.DB, dataToBeAssigned);
           }
-          return cb();
+          return typeof cb == 'function' ? cb() : void 8;
         });
       },
       get: function(key, cb){

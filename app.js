@@ -25,7 +25,7 @@ This work is published from Taiwan.
     } catch (e$) {}
   }());
   CONFIG = require('./environment');
-  port = Number(argv.port || (json != null ? json.PORT_NODEJS : void 8) || process.env.PORT || process.env.VCAP_APP_PORT || process.env.OPENSHIFT_NODEJS_PORT || CONFIG.port) || 8000;
+  port = Number(argv.port || (json != null ? json.PORT_NODEJS : void 8) || process.env.PORT || process.env.VCAP_APP_PORT || process.env.OPENSHIFT_NODEJS_PORT || CONFIG.port) || 4200;
   host = argv.host || process.env.VCAP_APP_HOST || process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0';
   basepath = replace$.call(argv.basepath || "", /\/$/, '');
   keyfile = argv.keyfile, certfile = argv.certfile, key = argv.key, polling = argv.polling, cors = argv.cors, expire = argv.expire;
