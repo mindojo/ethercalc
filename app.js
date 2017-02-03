@@ -10,7 +10,7 @@ This work is published from Taiwan.
 <http://creativecommons.org/publicdomain/zero/1.0>
 */
 (function(){
-  var slurp, argv, json, port, host, basepath, keyfile, certfile, key, polling, cors, expire, transport, options, replace$ = ''.replace;
+  var slurp, argv, json, CONFIG, port, host, basepath, keyfile, certfile, key, polling, cors, expire, transport, options, replace$ = ''.replace;
   slurp = function(it){
     return require('fs').readFileSync(it, 'utf8');
   };
@@ -24,7 +24,8 @@ This work is published from Taiwan.
       return JSON.parse(slurp('/home/dotcloud/environment.json'));
     } catch (e$) {}
   }());
-  port = Number(argv.port || (json != null ? json.PORT_NODEJS : void 8) || process.env.PORT || process.env.VCAP_APP_PORT || process.env.OPENSHIFT_NODEJS_PORT) || 4200;
+  CONFIG = require('./environment');
+  port = Number(argv.port || (json != null ? json.PORT_NODEJS : void 8) || process.env.PORT || process.env.VCAP_APP_PORT || process.env.OPENSHIFT_NODEJS_PORT || CONFIG.port) || 8000;
   host = argv.host || process.env.VCAP_APP_HOST || process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0';
   basepath = replace$.call(argv.basepath || "", /\/$/, '');
   keyfile = argv.keyfile, certfile = argv.certfile, key = argv.key, polling = argv.polling, cors = argv.cors, expire = argv.expire;
