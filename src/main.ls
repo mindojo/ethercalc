@@ -438,7 +438,6 @@
   @on data: !->
     {room, msg, user, ecell, cmdstr, type, auth} = @data
     console.log \data, room, user, type
-    DB.addSpreadsheet room
     # eddy
     #console.log "on data: " {...@data}
     room = "#room" - /^_+/ # preceding underscore is reserved

@@ -11,11 +11,8 @@
   # At the end, we assign this var to @__DB__
   db = {}
 
-  # Hold the database that is pulled or pushed from/to backend API
+  # Holds the database data that are pulled or pushed from/to backend API
   db.DB = {}
-
-  # Array of spreadsheet keys that are available
-  db.spreadsheets = []
 
   # Array of modifications that have been made since last save to db
   # For example:
@@ -51,65 +48,37 @@
     JSON.stringify(obj) === JSON.stringify({});
 
 
-  # Ask for data if any available on backend so we can restore
-  # previous sessions
-  /*request.get do
-    CONFIG.host # URL to backend API
-    (err, res) ->
-      return console.error err if err
-
-      # Parse data from db
-      # In DB we have for example the following objects
-      # {
-      #   "id": 1,
-      #   "data": "JSON.stringified data here"
-      # }
-      # and by sending the request, we receive that particular object
-      # and we wanna get its database from data property
-      data = JSON.parse res.body .data
-      if data
-        db.DB = JSON.parse data
-        #console.log data
-        console.log "==> Restored previous session from DB"
-      else
-        console.log "==> No previous session in DB found"*/
-
   # Define commands that are a replacement for the onces that should be
   # originally used for Redis database
   Commands =
     # Save data to database
     bgsave: (cb) ->
-      # console.log '\n\nbgsave =================================>'
       return unless db.modifications.length > 0
 
-      console.log '\n\n\nstart modifying... ============================>\n\n'
-      for modification in db.modifications
-        console.log \modification, modification
-      console.log '\n\nend modifying...   ============================>\n\n\n'
+      # console.log '\n\n\nstart modifying... ============================>\n'
+      # for modification in db.modifications
+      #   console.log \modification, modification
+      # console.log '\nend modifying...   ============================>\n\n\n'
 
       # Create a a hashtable from modifications
       toBeSaved = {}
       for modification in db.modifications
         toBeSaved[modification.modKey] = modification.modValue
 
+      console.log '\n\n\nMODIFICATIONS ============================>\n'
+      console.log toBeSaved
+
       # Updata modified data in the db on every save
       request.put do
         CONFIG.host
-        { json: { data: toBeSaved } }
+        { json: toBeSaved }
         (err, res, body) ->
+          #console.log '\n\n\nresponse\n'
+          #console.log body
           console.error err if err
           cleanModifications! unless err
 
       cb?!
-
-    addSpreadsheet: (key) ->
-      # First of, get just the key
-      key = key.split('_')[0]
-      # Find out whether we have this spreadsheet key
-      spreadsheets = db.spreadsheets.filter( (spreadsheetKey) -> spreadsheetKey is key )
-      # unless we have it, add the spreadsheet key
-      unless spreadsheets.length > 0
-        db.spreadsheets.push key
 
     fetchData: (sheetId) ->
       # Ask for data if any available on backend so we can restore
@@ -120,30 +89,26 @@
           return console.error err if err
 
           # Parse data from db
-          # In DB we have for example the following objects
+          # From DB we for example get the following object
           # {
-          #   "id": 1,
-          #   "data": "JSON.stringified data here"
+          #   "html-<sheet_id>": "html here",
+          #   "snapshot-<sheet_id>": "JSON.stringified data here"
           # }
-          # and by sending the request, we receive that particular object
-          # and we wanna get its database from data property
+          # This is gonna be in the following data variable
           data = JSON.parse res.body
 
+          console.log "\n\n\nDATA fetched for #{sheetId}  =====================================>\n"
           console.log \data, data
-          console.log '=====================================>'
+
 
           unless isObjectEmpty data
-            delete data.id
+            # Merge received data with current database
             db.DB = Object.assign db.DB, data
-            #console.log data
-            console.log "==> Restored previous session from DB"
+            console.log "\n\n\n==> Restored previous session from DB\n"
             console.log db.DB
-            console.log '=====================================>'
+            console.log '\n=====================================>'
           else
-            console.log "==> No previous session in DB found"
-
-    updateHtmlRepresentation: (key, html) ->
-      addModification key, html, 'updateHtmlRepresentation'
+            console.log "\n\n==> No previous session in DB found\n"
 
     get: (key, cb) -> cb?(null, db.DB[key])
 
@@ -206,6 +171,12 @@
         @exec cb
       | otherwise => cb null, @results
     return cmds
+
+  db.updateHtmlRepresentation = (key, html) ->
+    addModification "html-#{key}", html, 'updateHtmlRepresentation'
+    # HTML representation is updated after all modifications have been pushed
+    # to the API so we have to push the HTML representation separately
+    db.bgsave!
 
 
   @__DB__ = db

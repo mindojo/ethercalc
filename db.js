@@ -12,7 +12,6 @@
     minimatch = require('minimatch');
     db = {};
     db.DB = {};
-    db.spreadsheets = [];
     db.modifications = [];
     addModification = function(key, value, type){
       var modificationIndex;
@@ -41,47 +40,21 @@
       }
       return deepEq$(JSON.stringify(obj), JSON.stringify({}), '===');
     };
-    /*request.get do
-      CONFIG.host # URL to backend API
-      (err, res) ->
-        return console.error err if err
-    
-        # Parse data from db
-        # In DB we have for example the following objects
-        # {
-        #   "id": 1,
-        #   "data": "JSON.stringified data here"
-        # }
-        # and by sending the request, we receive that particular object
-        # and we wanna get its database from data property
-        data = JSON.parse res.body .data
-        if data
-          db.DB = JSON.parse data
-          #console.log data
-          console.log "==> Restored previous session from DB"
-        else
-          console.log "==> No previous session in DB found"*/
     Commands = {
       bgsave: function(cb){
-        var i$, ref$, len$, modification, toBeSaved;
+        var toBeSaved, i$, ref$, len$, modification;
         if (!(db.modifications.length > 0)) {
           return;
         }
-        console.log('\n\n\nstart modifying... ============================>\n\n');
-        for (i$ = 0, len$ = (ref$ = db.modifications).length; i$ < len$; ++i$) {
-          modification = ref$[i$];
-          console.log('modification', modification);
-        }
-        console.log('\n\nend modifying...   ============================>\n\n\n');
         toBeSaved = {};
         for (i$ = 0, len$ = (ref$ = db.modifications).length; i$ < len$; ++i$) {
           modification = ref$[i$];
           toBeSaved[modification.modKey] = modification.modValue;
         }
+        console.log('\n\n\nMODIFICATIONS ============================>\n');
+        console.log(toBeSaved);
         request.put(CONFIG.host, {
-          json: {
-            data: toBeSaved
-          }
+          json: toBeSaved
         }, function(err, res, body){
           if (err) {
             console.error(err);
@@ -92,16 +65,6 @@
         });
         return typeof cb == 'function' ? cb() : void 8;
       },
-      addSpreadsheet: function(key){
-        var spreadsheets;
-        key = key.split('_')[0];
-        spreadsheets = db.spreadsheets.filter(function(spreadsheetKey){
-          return spreadsheetKey === key;
-        });
-        if (!(spreadsheets.length > 0)) {
-          return db.spreadsheets.push(key);
-        }
-      },
       fetchData: function(sheetId){
         return request.get(CONFIG.host + sheetId, function(err, res){
           var data;
@@ -109,22 +72,17 @@
             return console.error(err);
           }
           data = JSON.parse(res.body);
+          console.log("\n\n\nDATA fetched for " + sheetId + "  =====================================>\n");
           console.log('data', data);
-          console.log('=====================================>');
           if (!isObjectEmpty(data)) {
-            delete data.id;
             db.DB = Object.assign(db.DB, data);
-            console.log("==> Restored previous session from DB");
+            console.log("\n\n\n==> Restored previous session from DB\n");
             console.log(db.DB);
-            return console.log('=====================================>');
+            return console.log('\n=====================================>');
           } else {
-            return console.log("==> No previous session in DB found");
+            return console.log("\n\n==> No previous session in DB found\n");
           }
         });
-      },
-      updateHtmlRepresentation: function(key, html){
-        console.log('\n\n\n\n\ncreating html............ ------------------------->');
-        return console.log(key, html);
       },
       get: function(key, cb){
         return typeof cb == 'function' ? cb(null, db.DB[key]) : void 8;
@@ -238,6 +196,12 @@
           return this;
         };
       }
+    };
+    db.updateHtmlRepresentation = function(key, html){
+      console.log("\n\n\nUPDATING HTML =====================================>\n");
+      console.log(html);
+      addModification("html-" + key, html, 'updateHtmlRepresentation');
+      return db.bgsave();
     };
     return this.__DB__ = db;
   };
